@@ -799,6 +799,59 @@ let BattleFormats = {
 			}
 		},
 	},
+	sameweaknessclause: {
+		effectType: 'ValidatorRule',
+		name: 'Same Weakness Clause',
+		desc: "Forces all Pok&eacute;mon on a team to share a weakness with each other",
+		onBegin() {
+			this.add('rule', 'Same Weakness Clause: Pokémon in a team must share a weakness');
+		},
+		onValidateTeam(team) {
+			/**@type {string[]} */
+			let typeTable = [];
+			for (const [i, set] of team.entries()) {
+				let template = this.getTemplate(set.species);
+				let item = this.getItem(set.item);
+				let megaTemplate;
+				if (item.megaStone && template.species === item.megaEvolves){
+					megaTemplate = this.getTemplate(item.megaStone);
+				}
+				if (!template.types) return [`Invalid pokemon ${set.name || set.species}`];
+				if (i === 0) {
+					for (let type in Dex.data.TypeChart) {
+						let typeMod = Dex.getEffectiveness(type, template);
+						if (typeMod >= 1 && !typeTable.includes(type)){
+								typeTable.push(type);
+						}
+						if (megaTemplate){
+							let typeMod = Dex.getEffectiveness(type, megaTemplate);
+							if (typeMod >= 1 && !typeTable.includes(type)){
+									typeTable.push(type);
+							}
+						}
+					}
+				} else {
+					// @ts-ignore
+					for (let type in Dex.data.TypeChart) {
+						let typeMod = Dex.getEffectiveness(type, template);
+						if (typeMod <= 0 && typeTable.includes(type)){
+							typeTable.splice(typeTable.indexOf(type));
+						}
+						if (megaTemplate){
+							let typeMod = Dex.getEffectiveness(type, megaTemplate);
+							if (typeMod <= 0 && typeTable.includes(type)){
+								typeTable.splice(typeTable.indexOf(type));
+							}
+						}
+					}
+				}
+				if (set.ability == 'Levitate' && typeTable.includes('Ground')){
+					typeTable.splice(typeTable.indexOf('Ground'));
+				}
+				if (!typeTable.length) return [`Your team must share a weakness. A Pokémon with Levitate is immune to Ground.`];
+			}
+		},
+	},
 	megarayquazaclause: {
 		effectType: 'Rule',
 		name: 'Mega Rayquaza Clause',
